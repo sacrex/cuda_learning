@@ -12,8 +12,12 @@ const int N = 100000000;
 const int M = sizeof(real) * N;
 const int BLOCK_SIZE = 128;
 
-void timing(const real *x, const int N);
-real reduce(const real *x, const int N);
+void timing(real *h_x, real *d_x, const int method);
+real reduce(real *d_x, const int method);
+
+__global__ void reduce_global(real *d_x, real *d_y);
+__global__ void reduce_shared(real *d_x, real *d_y);
+__global__ void reduce_dynamic(real *d_x, real *d_y);
 
 int main()
 {
@@ -28,12 +32,12 @@ int main()
     timing(h_x, d_x, 0);
 
     
-    printf("\nUsing static shared memory:\n");
-    timing(h_x, d_x, 1);
+    // printf("\nUsing static shared memory:\n");
+    // timing(h_x, d_x, 1);
 
     
-    printf("\nUsing dynamic shared memory:\n");
-    timing(h_x, d_x, 2);
+    // printf("\nUsing dynamic shared memory:\n");
+    // timing(h_x, d_x, 2);
 
     free(h_x);
     CHECK(cudaFree(d_x));
@@ -60,7 +64,7 @@ void timing(real *h_x, real *d_x, const int method)
 
         float elpased_time;
         CHECK(cudaEventElapsedTime(&elpased_time, start, end));
-        printf("Time = %g ms.\n", elpased_time);
+        // printf("i = %d, Time = %g ms.\n", i+1, elpased_time);
 
         CHECK(cudaEventDestroy(start));
         CHECK(cudaEventDestroy(end));
@@ -110,8 +114,19 @@ real reduce(real *d_x, const int method)
 __global__ void reduce_global(real *d_x, real *d_y)
 {
     const int tid = threadIdx.x;
-    real *x_start = d_x + blockIdx.x * blockDim.x;
-    
+    real *block_x = d_x + blockIdx.x * blockDim.x;
+
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            block_x[tid] += block_x[tid + offset];
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        d_y[blockIdx.x] = block_x[0];
+    }
+    return;
 }
 
 __global__ void reduce_shared(real *d_x, real *d_y)
