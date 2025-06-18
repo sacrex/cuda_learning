@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.cpp_extension import load
 
-cuda_model = load(name="add3",
+cuda_model = load(name="add2",
                   sources=["add2.cpp", "add2_kernel.cu"],
                   verbose=True)
 
