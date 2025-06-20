@@ -32,12 +32,12 @@ int main()
     timing(h_x, d_x, 0);
 
     
-    // printf("\nUsing static shared memory:\n");
-    // timing(h_x, d_x, 1);
+    printf("\nUsing static shared memory:\n");
+    timing(h_x, d_x, 1);
 
     
-    // printf("\nUsing dynamic shared memory:\n");
-    // timing(h_x, d_x, 2);
+    printf("\nUsing dynamic shared memory:\n");
+    timing(h_x, d_x, 2);
 
     free(h_x);
     CHECK(cudaFree(d_x));
@@ -131,10 +131,42 @@ __global__ void reduce_global(real *d_x, real *d_y)
 
 __global__ void reduce_shared(real *d_x, real *d_y)
 {
+    const int tid = threadIdx.x;
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    __shared__ real s_y[128]; //共享静态内存
 
+    s_y[tid] = (idx < N) ? d_x[idx] : 0.0;
+    __syncthreads();
+
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            s_y[tid] += s_y[tid + offset];
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        d_y[blockIdx.x] = s_y[0];
+    }
 }
 
 __global__ void reduce_dynamic(real *d_x, real *d_y)
 {
+    const int tid = threadIdx.x;
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    extern __shared__ real s_y[];
 
+    s_y[tid] = (idx < N) ? d_x[idx]: 0.0;
+    __syncthreads();
+
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            s_y[tid] += s_y[tid + offset];
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        d_y[blockIdx.x] = s_y[0];
+    }
 }
