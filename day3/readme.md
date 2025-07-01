@@ -71,3 +71,12 @@ FLOAT4(r_comp_b[4]) = FLOAT4(s_b[tk][tx * TN / 2 + BN / 2]);
 一张图总结：
 [compute](./thread_tiling_compute.jpg)
 
+# sgemm_v3.cu
+通过使用双buffer机制，实现流水并行 -- 读取+计算
+1、load global data -> share memory
+2、loop:
+     switch share memory location
+     load another global data -> register
+     calc use first share memory data
+     register -> second share memory
+3、calc last share memory data
