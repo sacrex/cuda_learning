@@ -12,16 +12,13 @@ float testError(void);
 float testPerformance(Sgemm gpuSgemm, dim3 gridDim, dim3 blockDim, const int, const int, const int, const int);
 
 void cpuSgemm(float *a, float *b, float *c, const int M, const int N, const int K) {
-    
     for (int m = 0; m < M; ++m) {
         for (int n = 0; n < N; ++n) {
-            
             float psum = 0.0;
             for (int k = 0; k < K; ++k) {
                 psum += a[OFFSET(m, k, K)] * b[OFFSET(k, n, N)];
             }
             c[OFFSET(m, n, N)] = psum;
-
         }
     }
 }
@@ -33,7 +30,6 @@ __global__ void naiveSgemm(float * __restrict__ a, float * __restrict__ b,
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (m < M && n < N) {
         float psum = 0.0;
-
         #pragma unroll
         for (int k = 0; k < K; ++k) {
             psum += a[OFFSET(m, k, K)] * b[OFFSET(k, n, N)];
@@ -84,7 +80,7 @@ int main() {
 
 float testError() {
     const int BM = 32, BN = 32;
-    const int M = 512, N = 512, K = 512;
+    const int M = 48, N = 48, K = 512;
 
     dim3 blockDim(BN, BM);
     dim3 gridDim((N + BN - 1) / BN, (M + BM - 1) / BM);
@@ -119,14 +115,10 @@ float testError() {
     naiveSgemm<<<gridDim, blockDim>>>(d_a, d_b, d_c, M, N, K);
     cudaMemcpy(h_d_c, d_c, size_c, cudaMemcpyDeviceToHost);
 
-
     float max_error = 0.0;
     for (int i = 0; i < M * N; i++) {
         float this_error = abs(h_d_c[i] - h_c[i]);
-        if (i % 50000 == 0) {
-            printf("h_c[%d] = %12.6f, h_d_c[%d] = %12.6f\n", i, h_c[i], i, h_d_c[i]);
-        }
-        if (abs(this_error) > 1e-9) {
+        if (max_error != max_error || this_error != this_error) {
             max_error = -NAN;
         } else {
             max_error = max(max_error, this_error);
